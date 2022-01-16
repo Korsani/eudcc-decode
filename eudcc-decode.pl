@@ -11,45 +11,49 @@ use Pod::Usage;
 
 use vars qw($HCERT $DUMP $HELP);
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-my %DGC;
-$DGC{'EU/1/20/1528'}='Comirnaty';
-$DGC{'EU/1/20/1507'}='Spikevax';
-$DGC{'EU/1/21/1529'}='Vaxzevria';
-$DGC{'EU/1/20/1525'}='COVID-19 Vaccine Janssen';
-$DGC{'ORG-100001699'}='AstraZeneca AB';
-$DGC{'ORG-100030215'}='Biontech Manufacturing GmbH';
-$DGC{'ORG-100001417'}='Janssen-Cilag International';
-$DGC{'ORG-100031184'}='Moderna Biotech Spain S.L.';
-$DGC{'840539006'}='COVID-19';
-$DGC{'LP6464-4'}='Nucleic acid amplification with probe detection';
-$DGC{'LP217198-3'}='Rapid immunoassay';
-$DGC{'1119349007'}='SARS-CoV2 mRNA vaccine';
-$DGC{'1119305005'}='SARS-CoV2 antigen vaccine';
-$DGC{'J07BX03'}='covid-19 vaccines';
-my %V;
-$V{"ci"}="UVCI";
-$V{"is"}="Issuer";
-$V{"co"}="Country";
-$V{"sd"}="Number of doses";
-$V{"dn"}="Doses needed";
-$V{"dt"}="Last dose";
-$V{"ma"}="Vax manufacturer";
-$V{"mp"}="Vax product";
-$V{"vp"}="Vaccine or prophylaxis";
-$V{"tg"}="Agent targeted";
+my %DGC=(
+	"EU/1/20/1528"	=>	"Comirnaty",
+	"EU/1/20/1507"	=>	"Spikevax",
+	"EU/1/21/1529"	=>	"Vaxzevria",
+	"EU/1/20/1525"	=>	"COVID-19 Vaccine Janssen",
+	"ORG-100001699"	=>	"AstraZeneca AB",
+	"ORG-100030215"	=>	"Biontech Manufacturing GmbH",
+	"ORG-100001417"	=>	"Janssen-Cilag International",
+	"ORG-100031184"	=>	"Moderna Biotech Spain S.L.",
+	"840539006"		=>	"COVID-19",
+	"LP6464-4"		=>	"Nucleic acid amplification with probe detection",
+	"LP217198-3"	=>	"Rapid immunoassay",
+	"1119349007"	=>	"SARS-CoV2 mRNA vaccine",
+	"1119305005"	=>	"SARS-CoV2 antigen vaccine",
+	"J07BX03"		=>	"covid-19 vaccines"
+);
+my %V=(
+	"ci"	=>	"UVCI",
+	"is"	=>	"Issuer",
+	"co"	=>	"Country",
+	"sd"	=>	"Number of doses",
+	"dn"	=>	"Doses needed",
+	"dt"	=>	"Last dose",
+	"ma"	=>	"Vax manufacturer",
+	"mp"	=>	"Vax product",
+	"vp"	=>	"Vaccine or prophylaxis",
+	"tg"	=>	"Agent targeted"
+);
 # Useless pour l'instant
-my %T;
-$T{"tt"}="Test type";
-$T{"nm"}="Test name";
-$T{"ma"}="Test device identifier";
-$T{"sc"}="Sample collection date";
-$T{"tr"}="Test result";
-$T{"tc"}="Test center";
-my %NAM;
-$NAM{"fn"}="Surname(s)";
-$NAM{"fnt"}="Standardized surname(s)";
-$NAM{"gn"}="Forename(s)";
-$NAM{"gnt"}="Standardized forename(s)";
+my %T=(
+	"tt"	=>	"Test type",
+	"nm"	=>	"Test name",
+	"ma"	=>	"Test device identifier",
+	"sc"	=>	"Sample collection date",
+	"tr"	=>	"Test result",
+	"tc"	=>	"Test center"
+);
+my %NAM=(
+	"fn"	=>	"Surname(s)",
+	"fnt"	=>	"Standardized surname(s)",
+	"gn"	=>	"Forename(s)",
+	"gnt"	=>	"Standardized forename(s)"
+);
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
@@ -66,28 +70,25 @@ if (defined $HELP) {
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-$HCERT=~s/^HC1://;
-my $d=new Compress::Raw::Zlib::Inflate();
-my $decoded=decode_base45($HCERT);
-$d->inflate(\$decoded,my $o);
-my $cbor=decode_cbor($o);
-my $protected=decode_cbor(@{$cbor}[1]->[0]);
-${$cbor}[1]->[0]=$protected;
-my $payload=decode_cbor(@{$cbor}[1]->[2]);
-${$cbor}[1]->[2]=$payload;
-my $signature=@{$cbor}[1]->[3];
-${$cbor}[1]->[3]=encode_base64($signature);
-# Pas utilisé
-my $unprotected=@{$cbor}[1]->[1];
-#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
-if ($DUMP) {
-	print Dumper($cbor);
-	exit,
-}
 my $prefix_format='[%3s:%-3s] ';
 my $display_format='%-30s: %s';
+sub parse_hc1 {
+	my $hcert=shift;
+	$hcert=~s/^HC1://;
+	my $d=new Compress::Raw::Zlib::Inflate();
+	my $decoded=decode_base45($hcert);
+	$d->inflate(\$decoded,my $o);
+	my $cbor=decode_cbor($o);
+	my $protected=decode_cbor(@{$cbor}[1]->[0]);
+	${$cbor}[1]->[0]=$protected;
+	my $payload=decode_cbor(@{$cbor}[1]->[2]);
+	${$cbor}[1]->[2]=$payload;
+	my $signature=@{$cbor}[1]->[3];
+	${$cbor}[1]->[3]=encode_base64($signature);
+	# Unused
+	my $unprotected=@{$cbor}[1]->[1];
+	return $cbor;
+}
 # Decode first level
 sub decode_payload_1 {
 	my $payload=shift;
@@ -136,19 +137,27 @@ sub decode_payload_t {
 		}
 	}
 }
-decode_payload_1($payload);
-if (exists ${$payload}{-260}{1}{'nam'}) {
-	decode_payload_nam ${$payload}{-260}{1}{'nam'};
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+my $cbor=parse_hc1($HCERT);
+if ($DUMP) {
+	print Dumper($cbor);
+	exit;
 }
-if (exists ${$payload}{-260}{1}{'v'}) {
-	decode_payload_v ${$payload}{-260}{1}{'v'};
+decode_payload_1(${$cbor}[1][2]);
+if (exists ${$cbor}[1][2]{-260}{1}{'nam'}) {
+	decode_payload_nam ${$cbor}[1][2]{-260}{1}{'nam'};
 }
-if (exists ${$payload}{-260}{1}{'t'}) {
-	decode_payload_t ${$payload}{-260}{1}{'t'};
+if (exists ${$cbor}[1][2]{-260}{1}{'v'}) {
+	decode_payload_v ${$cbor}[1][2]{-260}{1}{'v'};
 }
-if (exists ${$payload}{-260}{1}{'dob'}) {
+if (exists ${$cbor}[1][2]{-260}{1}{'t'}) {
+	decode_payload_t ${$cbor}[1][2]{-260}{1}{'t'};
+}
+if (exists ${$cbor}[1][2]{-260}{1}{'dob'}) {
 	printf "$prefix_format",'dob','';
-	printf "$display_format\n",'Date of birth',${$payload}{-260}{1}{'dob'};
+	printf "$display_format\n",'Date of birth',${$cbor}[1][2]{-260}{1}{'dob'};
 }
 =pod
 
