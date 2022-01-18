@@ -184,6 +184,10 @@ EUDCC (health pass) decoder
 
 EUDCC string to decode
 
+=item --dump
+
+Dump the CBOR object.
+
 =back
 
 =cut
